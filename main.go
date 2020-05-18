@@ -55,6 +55,7 @@ func main() {
 	dsn := flag.String("dsn", "mysqluser:mysqlpasswd@tcp(10.156.14.46)/testmysql", "Database source name")
 	doMigrate := flag.Bool("migrate", false, "Migrate database schema to current version")
 	createDomain := flag.Bool("create-domain", false, "Create new domain")
+	renameDomain := flag.Bool("rename-domain", false, "Rename existing domain")
 	createUser := flag.Bool("create-user", false, "Create new user")
 	createAdminUser := flag.Bool("create-admin-user", false, "Create new admin user")
 	changePasswd := flag.Bool("change-password", false, "Change password")
@@ -95,6 +96,28 @@ func main() {
 		_, er = db.Exec("INSERT INTO domains(domain_name, forum_name) VALUES(?, ?);", domainName, forumName)
 		if er != nil {
 			log.Fatalf("[ERROR] Error creating domain: %s\n", er)
+		}
+		return
+	}
+
+	if *renameDomain {
+		fmt.Print("Enter current domain name (ex: www.google.com): ")
+		var domainName string
+		fmt.Scanln(&domainName)
+
+		var domainID int
+		er = db.QueryRow("SELECT id FROM domains WHERE domain_name=?;", domainName).Scan(&domainID)
+		if er != nil {
+			log.Fatalf("[ERROR] Could not find domain: %s\n", domainName)
+		}
+
+		fmt.Print("Enter new domain name: ")
+		var newDomainName string
+		fmt.Scanln(&newDomainName)
+
+		_, er = db.Exec("UPDATE domains SET domain_name=? WHERE id=?", newDomainName, domainID)
+		if er != nil {
+			log.Fatalf("[ERROR] Error renaming domain: %s\n", er)
 		}
 		return
 	}
