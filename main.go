@@ -31,6 +31,16 @@ func credentials() (string, string) {
 	fmt.Print("Enter Password: ")
 	bytePassword, _ := terminal.ReadPassword(int(syscall.Stdin))
 	password := string(bytePassword)
+	fmt.Println("")
+
+	fmt.Print("Enter Password (again): ")
+	bytePassword2, _ := terminal.ReadPassword(int(syscall.Stdin))
+	password2 := string(bytePassword2)
+	fmt.Println("")
+
+	if password != password2 {
+		log.Fatalf("[ERROR] Passwords do not match")
+	}
 
 	return strings.TrimSpace(username), strings.TrimSpace(password)
 }
@@ -41,18 +51,18 @@ func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	addr := flag.String("addr", ":9123", "Port to listen on")
+	addr := flag.String("port", ":9123", "Port to listen on")
 	dsn := flag.String("dsn", "mysqluser:mysqlpasswd@tcp(10.156.14.46)/testmysql", "Database source name")
 	doMigrate := flag.Bool("migrate", false, "Migrate database schema to current version")
-	createDomain := flag.Bool("createdomain", false, "Create new domain")
-	createUser := flag.Bool("createuser", false, "Create new user")
-	createAdminUser := flag.Bool("createadminuser", false, "Create new admin user")
-	changePasswd := flag.Bool("changepassword", false, "Change password")
-	banUser := flag.Bool("banuser", false, "Ban user")
-	unbanUser := flag.Bool("unbanuser", false, "Unban user")
-	dropSessions := flag.Bool("dropsessions", false, "Drop sessions and log out all users")
-	enableReadOnly := flag.Bool("enablereadonly", false, "Enable read-only mode")
-	disableReadOnly := flag.Bool("disablereadonly", false, "Disable read-only mode")
+	createDomain := flag.Bool("create-domain", false, "Create new domain")
+	createUser := flag.Bool("create-user", false, "Create new user")
+	createAdminUser := flag.Bool("create-admin-user", false, "Create new admin user")
+	changePasswd := flag.Bool("change-password", false, "Change password")
+	banUser := flag.Bool("ban-user", false, "Ban user")
+	unbanUser := flag.Bool("unban-user", false, "Unban user")
+	dropSessions := flag.Bool("drop-sessions", false, "Drop sessions and log out all users")
+	enableReadOnly := flag.Bool("enable-readonly", false, "Enable read-only mode")
+	disableReadOnly := flag.Bool("disable-readonly", false, "Disable read-only mode")
 
 	flag.Parse()
 
@@ -97,7 +107,7 @@ func main() {
 		var domainID int
 		er = db.QueryRow("SELECT id FROM domains WHERE domain_name=?;", domainName).Scan(&domainID)
 		if er != nil {
-			log.Fatalf("[ERROR] Could not get domain ID for domain: %s\n", domainName)
+			log.Fatalf("[ERROR] Could not find domain: %s\n", domainName)
 		}
 
 		username, passwd := credentials()
@@ -126,17 +136,23 @@ func main() {
 		var domainID int
 		er = db.QueryRow("SELECT id FROM domains WHERE domain_name=?;", domainName).Scan(&domainID)
 		if er != nil {
-			log.Fatalf("[ERROR] Could not get domain ID for domain: %s\n", domainName)
+			log.Fatalf("[ERROR] Could not find domain: %s\n", domainName)
 		}
 
-		username, passwd := credentials()
+		userName, passwd := credentials()
+
+		var userID int
+		er = db.QueryRow("SELECT id FROM users WHERE domain_id=? AND username=?;", domainID, userName).Scan(&userID)
+		if er != nil {
+			log.Fatalf("[ERROR] Could not find user: %s\n", userName)
+		}
 
 		if passwd == "" {
 			log.Fatalf("[ERROR] Password cannot be blank\n")
 		}
 
 		if passwdHash, err := bcrypt.GenerateFromPassword([]byte(passwd), bcrypt.DefaultCost); err == nil {
-			db.Exec("UPDATE users SET passwdhash=? WHERE domain_id=? AND username=?;", hex.EncodeToString(passwdHash), domainID, username)
+			db.Exec("UPDATE users SET passwdhash=? WHERE domain_id=? AND id=?;", hex.EncodeToString(passwdHash), domainID, userID)
 		} else {
 			log.Fatalf("[ERROR] Error hashing password: %s\n", err)
 		}
@@ -151,7 +167,7 @@ func main() {
 		var domainID int
 		er = db.QueryRow("SELECT id FROM domains WHERE domain_name=?;", domainName).Scan(&domainID)
 		if er != nil {
-			log.Fatalf("[ERROR] Could not get domain ID for domain: %s\n", domainName)
+			log.Fatalf("[ERROR] Could not find domain: %s\n", domainName)
 		}
 
 		fmt.Print("Enter username: ")
@@ -180,7 +196,7 @@ func main() {
 		var domainID int
 		er = db.QueryRow("SELECT id FROM domains WHERE domain_name=?;", domainName).Scan(&domainID)
 		if er != nil {
-			log.Fatalf("[ERROR] Could not get domain ID for domain: %s\n", domainName)
+			log.Fatalf("[ERROR] Could not find domain: %s\n", domainName)
 		}
 
 		if *enableReadOnly {
@@ -202,7 +218,7 @@ func main() {
 			var domainID int
 			er = db.QueryRow("SELECT id FROM domains WHERE domain_name=?;", domainName).Scan(&domainID)
 			if er != nil {
-				log.Fatalf("[ERROR] Could not get domain ID for domain: %s\n", domainName)
+				log.Fatalf("[ERROR] Could not find domain: %s\n", domainName)
 			}
 			db.Exec("DELETE FROM sessions WHERE id=?;", domainID)
 		}
