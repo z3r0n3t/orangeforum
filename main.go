@@ -48,6 +48,8 @@ func main() {
 	createUser := flag.Bool("createuser", false, "Create new user")
 	createAdminUser := flag.Bool("createadminuser", false, "Create new admin user")
 	changePasswd := flag.Bool("changepassword", false, "Change password")
+	banUser := flag.Bool("banuser", false, "Ban user")
+	unbanUser := flag.Bool("unbanuser", false, "Unban user")
 	dropSessions := flag.Bool("dropsessions", false, "Drop sessions and log out all users")
 	enableReadOnly := flag.Bool("enablereadonly", false, "Enable read-only mode")
 	disableReadOnly := flag.Bool("disablereadonly", false, "Disable read-only mode")
@@ -137,6 +139,35 @@ func main() {
 			db.Exec("UPDATE users SET passwdhash=? WHERE domain_id=? AND username=?;", hex.EncodeToString(passwdHash), domainID, username)
 		} else {
 			log.Fatalf("[ERROR] Error hashing password: %s\n", err)
+		}
+		return
+	}
+
+	if *banUser || *unbanUser {
+		fmt.Print("Enter domain name (ex: www.google.com): ")
+		var domainName string
+		fmt.Scanln(&domainName)
+
+		var domainID int
+		er = db.QueryRow("SELECT id FROM domains WHERE domain_name=?;", domainName).Scan(&domainID)
+		if er != nil {
+			log.Fatalf("[ERROR] Could not get domain ID for domain: %s\n", domainName)
+		}
+
+		fmt.Print("Enter username: ")
+		var userName string
+		fmt.Scanln(&userName)
+
+		var userID int
+		er = db.QueryRow("SELECT id FROM users WHERE domain_id=? AND username=?;", domainID, userName).Scan(&userID)
+		if er != nil {
+			log.Fatalf("[ERROR] Could not find user: %s\n", userName)
+		}
+
+		if *banUser {
+			db.Exec("UPDATE users SET is_banned=? WHERE id=?", true, userID)
+		} else {
+			db.Exec("UPDATE users SET is_banned=? WHERE id=?", false, userID)
 		}
 		return
 	}
