@@ -115,7 +115,7 @@ func main() {
 		var newDomainName string
 		fmt.Scanln(&newDomainName)
 
-		_, er = db.Exec("UPDATE domains SET domain_name=? WHERE id=?", newDomainName, domainID)
+		_, er = db.Exec("UPDATE domains SET domain_name=? WHERE id=?;", newDomainName, domainID)
 		if er != nil {
 			log.Fatalf("[ERROR] Error renaming domain: %s\n", er)
 		}
@@ -204,9 +204,10 @@ func main() {
 		}
 
 		if *banUser {
-			db.Exec("UPDATE users SET is_banned=? WHERE id=?", true, userID)
+			db.Exec("UPDATE users SET is_banned=? WHERE id=?;", true, userID)
+			db.Exec("DELETE FROM sessions WHERE domain_id=? AND user_id=?;", domainID, userID)
 		} else {
-			db.Exec("UPDATE users SET is_banned=? WHERE id=?", false, userID)
+			db.Exec("UPDATE users SET is_banned=? WHERE id=?;", false, userID)
 		}
 		return
 	}
@@ -223,9 +224,9 @@ func main() {
 		}
 
 		if *enableReadOnly {
-			db.Exec("UPDATE domains SET read_only=? WHERE id=?", true, domainID)
+			db.Exec("UPDATE domains SET read_only=? WHERE id=?;", true, domainID)
 		} else {
-			db.Exec("UPDATE domains SET read_only=? WHERE id=?", false, domainID)
+			db.Exec("UPDATE domains SET read_only=? WHERE id=?;", false, domainID)
 		}
 		return
 	}
