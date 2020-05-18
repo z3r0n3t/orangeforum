@@ -13,6 +13,10 @@ func migrate0(db *sql.DB) {
 	_, err := db.Exec(`CREATE TABLE domains (
 		id INT NOT NULL AUTO_INCREMENT,
 		domain_name VARCHAR(120) NOT NULL,
+		forum_name VARCHAR(100) NOT NULL,
+		signup_disabled BOOL NOT NULL DEFAULT 0,
+		login_to_view BOOL NOT NULL DEFAULT 0,
+		read_only BOOL NOT NULL DEFAULT 0,
 		created_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		PRIMARY KEY(id),
@@ -25,12 +29,10 @@ func migrate0(db *sql.DB) {
 
 	_, err = db.Exec(`CREATE TABLE config (
 		id INT NOT NULL AUTO_INCREMENT,
-		domain_id INT DEFAULT NULL,
 		k VARCHAR(32) NOT NULL,
 		v VARCHAR(120) NOT NULL,
 		PRIMARY KEY(id),
-		FOREIGN KEY(domain_id) REFERENCES domains(id) ON DELETE CASCADE,
-		INDEX(domain_id, k)
+		INDEX(k)
 	);`)
 	if err != nil {
 		log.Fatalf("[ERROR] %s\n", err)
@@ -40,20 +42,23 @@ func migrate0(db *sql.DB) {
 		id INT NOT NULL AUTO_INCREMENT,
 		domain_id INT NOT NULL,
 		username VARCHAR(32) NOT NULL,
-		passwd VARCHAR(250) NOT NULL,
-		email VARCHAR(250),
+		passwdhash VARCHAR(250) NOT NULL,
+		email VARCHAR(250) DEFAULT NULL,
+		resetpass_key VARCHAR(50) DEFAULT NULL,
 		is_admin BOOL NOT NULL DEFAULT 0,
 		is_mod BOOL NOT NULL DEFAULT 0,
 		is_banned BOOL NOT NULL DEFAULT 0,
+		resetpass_date DATETIME DEFAULT CURRENT_TIMESTAMP,
 		created_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		PRIMARY KEY(id),
 		FOREIGN KEY(domain_id) REFERENCES domains(id) ON DELETE CASCADE,
+		UNIQUE(domain_id, username),
 		INDEX(domain_id, username),
 		INDEX(domain_id, email),
 		INDEX(domain_id, is_admin),
 		INDEX(domain_id, is_mod),
-		UNIQUE(domain_id, username)
+		INDEX(domain_id, resetpass_key)
 	);`)
 	if err != nil {
 		log.Fatalf("[ERROR] %s\n", err)
